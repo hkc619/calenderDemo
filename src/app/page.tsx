@@ -64,7 +64,9 @@ export default function Home() {
       <form
         onSubmit={async (e) => {
           e.preventDefault();
-          const title = e.target.title.value;
+          const form = e.target as HTMLFormElement;
+          const title = (form.elements.namedItem("title") as HTMLInputElement)
+            .value;
           await fetch("/api/events", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -74,7 +76,7 @@ export default function Home() {
               end: new Date(Date.now() + 3600000).toISOString(),
             }),
           });
-          e.target.reset();
+          form.reset();
           const newEvents = await fetch("/api/events").then((r) => r.json());
           setEvents(newEvents);
         }}
