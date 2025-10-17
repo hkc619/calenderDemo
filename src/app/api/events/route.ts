@@ -7,9 +7,10 @@ export async function GET() {
   if (!session) {
     return new Response("Unauthorized", { status: 401 });
   }
-
+  const accessToken = (session as any).access_token;
+  console.log("🔑 access token:", accessToken); // ✅ Debug：看這裡是不是 undefined
   const auth = new google.auth.OAuth2();
-  auth.setCredentials({ access_token: (session as any).access_token });
+  auth.setCredentials({ access_token: accessToken });
 
   const calendar = google.calendar({ version: "v3", auth });
   const res = await calendar.events.list({
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return new Response("Unauthorized", { status: 401 });
+      return new Response("Unuthorized", { status: 401 });
     }
 
     const { title, start, end } = await req.json();
@@ -47,11 +48,17 @@ export async function POST(req: Request) {
     auth.setCredentials({ access_token: (session as any).access_token });
 
     const calendar = google.calendar({ version: "v3", auth });
+    // ✅ 檢查 start 是全日還是含時間
+    const isAllDay = !start.includes("T");
 
     const event = {
       summary: title,
-      start: { dateTime: start },
-      end: { dateTime: end || start },
+      start: isAllDay
+        ? { date: start } // 全日事件
+        : { dateTime: start, timeZone: "America/New_York" }, // 有時間事件
+      end: isAllDay
+        ? { date: end || start } // 全日事件結束日
+        : { dateTime: end || start, timeZone: "America/New_York" }, // 有時間事件
     };
 
     const result = await calendar.events.insert({

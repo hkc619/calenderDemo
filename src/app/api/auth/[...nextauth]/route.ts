@@ -17,15 +17,16 @@ export const authOptions = {
     }),
   ],
   callbacks: {
+    // ✅ 第一次登入時，把 access_token 存到 token
     async jwt({ token, account }) {
       if (account) {
         token.access_token = account.access_token;
-        token.refresh_token = account.refresh_token;
       }
       return token;
     },
     async session({ session, token }) {
-      session.access_token = token.access_token;
+      // ✅ 每次 session 更新時，把 token.access_token 放進 session
+      session.access_token = token.access_token as string;
       return session;
     },
   },
