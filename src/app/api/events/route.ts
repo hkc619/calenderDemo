@@ -8,7 +8,8 @@ export async function GET() {
     return new Response("Unauthorized", { status: 401 });
   }
   const accessToken = (session as any).access_token;
-  console.log("🔑 access token:", accessToken); // ✅ Debug：看這裡是不是 undefined
+  // ✅ Debug：看這裡是不是 undefined
+  //console.log("🔑 access token:", accessToken);
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
 
@@ -69,6 +70,30 @@ export async function POST(req: Request) {
     return Response.json(result.data);
   } catch (err: any) {
     console.error("POST /api/events Error:", err);
+    return new Response("Internal Server Error", { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return new Response("Unauthorized", { status: 401 });
+
+    const { id } = await req.json();
+    if (!id) return new Response("Missing event ID", { status: 400 });
+
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: (session as any).access_token });
+    const calendar = google.calendar({ version: "v3", auth });
+
+    await calendar.events.delete({
+      calendarId: "primary",
+      eventId: id,
+    });
+
+    return new Response("Deleted", { status: 200 });
+  } catch (err) {
+    console.error("DELETE /api/events Error:", err);
     return new Response("Internal Server Error", { status: 500 });
   }
 }

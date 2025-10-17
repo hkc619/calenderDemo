@@ -1,4 +1,5 @@
 "use client";
+
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import CalendarView, { CalendarEvent } from "./components/CalendarView";
@@ -7,6 +8,12 @@ export default function Home() {
   const { data: session } = useSession();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
+  const loadEvents = async () => {
+    const res = await fetch("/api/events");
+    const data: CalendarEvent[] = await res.json();
+    setEvents(data);
+  };
+
   useEffect(() => {
     const load = async () => {
       const r = await fetch("/api/events");
@@ -14,7 +21,7 @@ export default function Home() {
       const data: CalendarEvent[] = await r.json();
       setEvents(data);
     };
-    if (session) load();
+    if (session) loadEvents();
   }, [session]);
 
   if (!session)

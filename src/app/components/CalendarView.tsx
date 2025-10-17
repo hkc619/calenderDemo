@@ -1,10 +1,11 @@
 "use client";
-
+import { useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
+import AddEventModal from "./AddEventModal";
 
 export type CalendarEvent = {
   id: string;
@@ -13,38 +14,86 @@ export type CalendarEvent = {
   end?: string;
 };
 
-type DateClickArg = {
-  dateStr: string;
-};
-
-type EventClickArg = {
-  event: { id: string; title: string; startStr: string; endStr: string };
-};
-
 export default function CalendarView({
   events,
-  onDateClick,
-  onEventClick,
+  onRefresh,
 }: {
   events: CalendarEvent[];
-  onDateClick?: (arg: DateClickArg) => void;
-  onEventClick?: (arg: EventClickArg) => void;
+  onRefresh: () => Promise<void>;
 }) {
+  const [selectedDate, setSelectedDate] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const handleDateClick = (info: any) => {
+    setSelectedDate(info.dateStr);
+    setModalOpen(true);
+  };
+
+  const handleSave = async (eventData: {
+    title: string;
+    date: string;
+    startTime?: string;
+    endTime?: string;
+    allDay: boolean;
+  }) => {
+    const { title, date, startTime, endTime, allDay } = eventData;
+
+    const startISO = allDay
+      ? date
+      : new Date(`${date}T${startTime}`).toISOString();
+    const endISO = allDay
+      ? date
+      : new Date(`${date}T${endTime || startTime}`).toISOString();
+
+    await fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title,
+        start: startISO,
+        end: endISO,
+      }),
+    });
+
+    await onRefresh(); // ✅ 即時刷新畫面
+  };
+  // ✅ 點擊事件時詢問是否刪除
+  const handleEventClick = async (clickInfo: any) => {
+    const event = clickInfo.event;
+    const confirmDelete = window.confirm(
+      `Delete "${event.title}" from your calendar?`
+    );
+    if (!confirmDelete) return;
+
+    await fetch("/api/events", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: event.id }),
+    });
+
+    await onRefresh();
+  };
   return (
-    <div className="w-full max-w-5xl mx-auto bg-white shadow-md rounded-lg p-4">
+    <>
       <FullCalendar
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+        plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
         initialView="dayGridMonth"
         headerToolbar={{
           left: "prev,next today",
           center: "title",
-          right: "dayGridMonth,timeGridWeek,timeGridDay",
+          right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
         }}
         events={events}
-        dateClick={onDateClick}
-        eventClick={onEventClick}
+        dateClick={handleDateClick}
+        eventClick={handleEventClick}
         height="80vh"
       />
-    </div>
+      <AddEventModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        selectedDate={selectedDate}
+        onSave={handleSave}
+      />
+    </>
   );
 }
