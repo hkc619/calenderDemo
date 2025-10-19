@@ -54,12 +54,18 @@ export async function POST(req: Request) {
 
     const event = {
       summary: title,
+      description: JSON.stringify({
+        type: "meal",
+        status: "pending",
+        mealType: "breakfast", // breakfast | lunch | dinner
+        recipeId: recipe.id,
+      }),
       start: isAllDay
-        ? { date: start } // 全日事件
-        : { dateTime: start, timeZone: "America/New_York" }, // 有時間事件
+        ? { date: start }
+        : { dateTime: start, timeZone: "America/New_York" },
       end: isAllDay
-        ? { date: end || start } // 全日事件結束日
-        : { dateTime: end || start, timeZone: "America/New_York" }, // 有時間事件
+        ? { date: end || start }
+        : { dateTime: end || start, timeZone: "America/New_York" },
     };
 
     const result = await calendar.events.insert({
