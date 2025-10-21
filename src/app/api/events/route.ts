@@ -103,3 +103,43 @@ export async function DELETE(req: Request) {
     return new Response("Internal Server Error", { status: 500 });
   }
 }
+
+export async function PATCH(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return new Response("Unauthorized", { status: 401 });
+
+    const { id, status } = await req.json(); // 前端傳 event ID 與新狀態
+
+    if (!id || !status)
+      return new Response("Missing parameters", { status: 400 });
+
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: (session as any).access_token });
+    const calendar = google.calendar({ version: "v3", auth });
+
+    // 讀取舊的事件內容（以保留其他欄位）
+    const oldEvent = await calendar.events.get({
+      calendarId: "primary",
+      eventId: id,
+    });
+
+    const oldData = oldEvent.data.description
+      ? JSON.parse(oldEvent.data.description)
+      : {};
+
+    // ✅ 更新事件描述中的狀態
+    await calendar.events.patch({
+      calendarId: "primary",
+      eventId: id,
+      requestBody: {
+        description: JSON.stringify({ ...oldData, status }),
+      },
+    });
+
+    return new Response("Event updated", { status: 200 });
+  } catch (err) {
+    console.error("PATCH /api/events Error:", err);
+    return new Response("Internal Server Error", { status: 500 });
+  }
+}
